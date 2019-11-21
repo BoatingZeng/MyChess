@@ -52,6 +52,8 @@ export default class App extends React.Component {
       Settings: {
         screen: Settings,
       },
+    }, {
+      drawerWidth: 150,
     });
     this.NavigationComponent = createAppContainer(MainNavigator);
   }

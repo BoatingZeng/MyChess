@@ -4,6 +4,7 @@ import {Text, View, Button, StyleSheet, ScrollView, Modal} from 'react-native';
 const renderPromotionModal = promotionCallback => {
   return (
     <Modal animationType="slide" transparent={true}>
+      <View style={{flex:1}} />
       <View style={styles.mainContainer}>
         <ScrollView>
           <Text style={styles.text}>Select a piece to promote to: </Text>
@@ -46,6 +47,7 @@ const renderPromotionModal = promotionCallback => {
           </View>
         </ScrollView>
       </View>
+      <View style={{flex:1}} />
     </Modal>
   );
 };

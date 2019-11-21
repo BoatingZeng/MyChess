@@ -4,6 +4,7 @@ import {Text, View, Button, StyleSheet, Modal} from 'react-native';
 const renderCheckmateModal = (checkmate, exitCallback, hideCallback) => {
   return (
     <Modal animationType="slide" transparent={true}>
+      <View style={{flex:1}} />
       <View style={styles.mainContainer}>
         <Text style={styles.text}>
           {checkmate !== 'D'
@@ -23,6 +24,7 @@ const renderCheckmateModal = (checkmate, exitCallback, hideCallback) => {
           </View>
         </View>
       </View>
+      <View style={{flex:1}} />
     </Modal>
   );
 };

@@ -4,6 +4,7 @@ import {Text, View, Button, StyleSheet, ScrollView, Modal} from 'react-native';
 const renderSelectModeModal = selectModeMethod => {
   return (
     <Modal animationType="slide" transparent={true}>
+      <View style={{flex:1}} />
       <View style={styles.mainContainer}>
         <ScrollView>
           <Text style={styles.text}>Choose game mode</Text>
@@ -50,6 +51,7 @@ const renderSelectModeModal = selectModeMethod => {
           </Text>
         </ScrollView>
       </View>
+      <View style={{flex:1}} />
     </Modal>
   );
 };
