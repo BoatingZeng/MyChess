@@ -1,10 +1,14 @@
 import React from 'react';
-import {Picker, Text, View, StyleSheet, Button} from 'react-native';
+import {Picker, Text, View, StyleSheet, Button, Switch} from 'react-native';
 
 import NavigationContext from '../components/NavigationContext';
 import {colorPalettes} from '../config';
 
 export default class Settings extends React.Component {
+  static navigationOptions = {
+    drawerLabel: 'Settings',
+  };
+
   render() {
     return (
       <NavigationContext.Consumer>
@@ -28,6 +32,16 @@ export default class Settings extends React.Component {
                     />
                   ))}
                 </Picker>
+              </View>
+              <View style={styles.item_view}>
+                <Text style={styles.flex1}>Rotation：</Text>
+                <Switch
+                  style={styles.flex2}
+                  value={data.rotated}
+                  onValueChange={(v) => {
+                    data.setRotation(v);
+                  }}
+                 />
               </View>
               <Button
                 title="Back"

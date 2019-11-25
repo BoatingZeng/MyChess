@@ -35,6 +35,7 @@ export default class App extends React.Component {
       playAgainstAI: null,
       isAIThinking: false,
       promotionParams: null,
+      rotated: false,
       selectModeModal: game.FEN === blankFEN, // 回到初始状态的话，就准备开始下一局
     };
 
@@ -200,6 +201,12 @@ export default class App extends React.Component {
     this.setState({palette: value});
   };
 
+  setRotation = value => {
+    this.setState({
+      rotated: value,
+    });
+  };
+
   render() {
     const {
       NavigationComponent,
@@ -208,6 +215,7 @@ export default class App extends React.Component {
       handleReplay,
       selectMode,
       updatePalette,
+      setRotation,
     } = this;
     return (
       <>
@@ -220,6 +228,7 @@ export default class App extends React.Component {
             handleReplay: handleReplay,
             selectMode: selectMode,
             updatePalette: updatePalette,
+            setRotation: setRotation,
             ...this.state,
           }}>
           <NavigationComponent
