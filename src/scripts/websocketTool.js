@@ -10,3 +10,7 @@ export function join(ws, roomId) {
 export function parseMessage(e) {
   return JSON.parse(e.data);
 }
+
+export function setReady(ws, roomId, playerId, isReady) {
+  ws.send(JSON.stringify({action: 'ready', roomId, playerId, isReady}));
+}

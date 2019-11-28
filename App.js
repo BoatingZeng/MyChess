@@ -20,7 +20,7 @@ import Settings from './src/pages/Settings';
 import NavigationContext from './src/components/NavigationContext';
 import {html} from './src/scripts/AI';
 import {combineParams} from './src/scripts/utils';
-import {join, parseMessage} from './src/scripts/websocketTool';
+import {join, parseMessage, setReady} from './src/scripts/websocketTool';
 
 let game = Game.prototype.initializeGame();
 const blankFEN = game.FEN; // FEN是棋局状态，blankFEN就是初始状态
@@ -28,7 +28,6 @@ const blankFEN = game.FEN; // FEN是棋局状态，blankFEN就是初始状态
 export default class App extends React.Component {
   constructor() {
     super();
-    this.playOnline = null;
 
     this.state = {
       width: Dimensions.get('window').width,
@@ -40,8 +39,15 @@ export default class App extends React.Component {
       playAgainstAI: null,
       promotionParams: null,
       rotated: false,
+      host: 'localhost',
+      port: '18888',
+      roomId: 'ai',
+      playerId: '',
+      isConnected: false, // 是否已经连接并且加入房间
+      isReady: false, // 联网时，自己是否准备好
+      isOnlinePlaying: false, // 联网游戏是否已经开始
       side: 'W',
-      isAIThinking: false, // 设置这个触发渲染
+      isWaiting: false, // 等待对手，设置这个触发渲染
       selectModeModal: game.FEN === blankFEN, // 回到初始状态的话，就准备开始下一局
     };
 
@@ -67,7 +73,7 @@ export default class App extends React.Component {
 
   startAI() {
     // 用websocket时也复用这个函数，这样改动最少，反正把websocket另一边的玩家也当作ai就好了
-    if(this.playOnline) {
+    if(this.state.isOnlinePlaying) {
       // 实际上只要等待就行
     } else {
       // 这里的startAI是调用WebView里的js写的AI，让AI走一步
@@ -75,19 +81,20 @@ export default class App extends React.Component {
         `AI(${combineParams(game, this.state.playAgainstAI)})`,
       );
     }
-    this.setState({isAIThinking: true});
+    this.setState({isWaiting: true});
   }
 
   handlePress = (x, y) => {
-    let {selected, playAgainstAI, checkmate, isAIThinking} = this.state;
+    let {selected, playAgainstAI, checkmate, isWaiting, isOnlinePlaying} = this.state;
 
-    if (isAIThinking) {
-      ToastAndroid.show('AI Thinking', ToastAndroid.SHORT, ToastAndroid.BOTTOM);
+    if (isWaiting) {
+      ToastAndroid.show('Waiting', ToastAndroid.SHORT);
       return;
     }
 
     if (selected) {
       let from = {x: selected.x, y: selected.y}; // 因为下面moveSelected会改变selected，所以先记下来
+      this.from = from; // 因为另一个函数也要访问，所以存到this里
       // move the selected piece
       let move = game.moveSelected(
         selected,
@@ -105,18 +112,19 @@ export default class App extends React.Component {
 
       if (
         move &&
-        playAgainstAI &&
+        (playAgainstAI || isOnlinePlaying) &&
         last >= 0 &&
         game.turn[last].color === this.state.side &&
         !checkmate &&
         !move.promotion
       ) {
-        this.startAI();
-        if(this.playOnline && this.ws && this.ws.readyState === this.ws.OPEN) {
+        let checkmateValue = move.checkmateValue;
+        if(!checkmateValue) this.startAI();
+        if(this.state.isOnlinePlaying && this.ws && this.ws.readyState === this.ws.OPEN) {
           // 发送到服务器
           let msg = {
             action: 'move',
-            roomId: this.playOnline.roomId,
+            roomId: this.state.roomId,
             side: this.state.side,
             move: {
               from: {
@@ -129,6 +137,7 @@ export default class App extends React.Component {
               },
             },
           };
+          if(checkmateValue) msg.checkmateValue = checkmateValue;
           msg = JSON.stringify(msg);
           this.ws.send(msg);
         }
@@ -147,20 +156,10 @@ export default class App extends React.Component {
           ToastAndroid.show(
             'Invalid move...',
             ToastAndroid.SHORT,
-            ToastAndroid.BOTTOM,
           );
       }
     }
   };
-
-  promoteAI(pawn, x, y, color) {
-    ToastAndroid.show(
-      'The AI promoted one of his pawns!',
-      ToastAndroid.LONG,
-      ToastAndroid.BOTTOM,
-    );
-    game.promotePawn(pawn, x, y, color, 'queen');
-  }
 
   handlePromotion = (pawn, x, y, color) => {
     this.setState({
@@ -175,24 +174,61 @@ export default class App extends React.Component {
 
   promoteSelectedPawn = piece => {
     // 国际象棋那个兵升级的规则
-    const {promotionParams, playAgainstAI, checkmate} = this.state;
+    const {promotionParams, playAgainstAI, isOnlinePlaying} = this.state;
     if (promotionParams) {
       piece = piece ? piece : 'knight';
       const {x, y, color, pawn} = promotionParams;
       game.promotePawn(pawn, x, y, color, piece);
+      // promote之后要主动检查是否checkmate
+      let checkmateColor = color === 'W' ? 'B' : 'W';
+      let checkmateValue = game.checkmate(checkmateColor);
+      if(checkmateValue) this.handleCheckmate(checkmateValue);
       this.setState({promotionParams: null});
-      if (playAgainstAI && !checkmate) {
-        this.startAI();
+      if ((playAgainstAI || isOnlinePlaying)) {
+        if(!checkmateValue) this.startAI();
+        if(this.state.isOnlinePlaying && this.ws && this.ws.readyState === this.ws.OPEN) {
+          // 发送到服务器
+          let from = this.from;
+          let msg = {
+            action: 'move',
+            roomId: this.state.roomId,
+            side: this.state.side,
+            move: {
+              from: {
+                x: from.x,
+                y: from.y,
+              },
+              to: {
+                x: x,
+                y: y,
+              },
+            },
+            promote: piece,
+          };
+          if(checkmateValue) msg.checkmateValue = checkmateValue;
+          msg = JSON.stringify(msg);
+          this.ws.send(msg);
+        }
       }
     }
   };
 
   handleCheckmate = color => {
-    this.setState({checkmate: color});
+    this.setState({checkmate: color, isReady: false, isOnlinePlaying: false});
   };
 
   handleMessage = msg => {
-    const {promoteAI} = this;
+    function promoteAI(pawn, x, y, color) {
+      ToastAndroid.show(
+        'Other player promoted one of his pawns!',
+        ToastAndroid.LONG,
+      );
+      game.promotePawn(pawn, x, y, color, msg.promote || 'queen');
+      let checkmateColor = color === 'W' ? 'B' : 'W';
+      let checkmateValue = game.checkmate(checkmateColor);
+      if(checkmateValue) this.handleCheckmate(checkmateValue);
+    }
+
     if(msg.action === 'move') {
       game.moveSelected(
         game.board[msg.move.from.y][msg.move.from.x],
@@ -211,7 +247,7 @@ export default class App extends React.Component {
         false,
       );
     }
-    this.setState({isAIThinking: false});
+    this.setState({isWaiting: false});
   };
 
   handleReplay = () => {
@@ -221,17 +257,13 @@ export default class App extends React.Component {
       promotionParams: null,
       checkmate: null,
       playAgainstAI: null,
+      isWaiting: false,
     });
-    this.setState({isAIThinking: false});
 
     game = Game.prototype.initializeGame();
   };
 
-  selectMode = (playAgainstAI, playOnline) => {
-    if(playOnline) {
-      this.playOnline = {...playOnline};
-      return this.connect();
-    }
+  selectMode = (playAgainstAI) => {
     this.handleReplay();
     this.setState({
         selectModeModal: false,
@@ -244,13 +276,24 @@ export default class App extends React.Component {
   };
 
   handleJoin = (data) => {
-    let {playerId, side, roomId} = data;
-    let {host, port} = this.playOnline;
-    this.playOnline = {host, port, playerId, roomId};
-    this.handleReplay();
+    let {playerId, side, isSuccess} = data;
+    if(isSuccess) {
+      this.setState({
+        playerId,
+        isConnected: true,
+        side: side,
+      });
+      this.handleReplay();
+    } else if(this.ws && this.ws.readyState !== this.ws.CLOSED && this.ws.readyState !== this.ws.CLOSING) {
+      ToastAndroid.show('Room Full', ToastAndroid.LONG);
+      this.ws.close();
+    }
+  };
+
+  handleStart = (data) => {
     this.setState({
-      playAgainstAI: {depth: 'online'},
-      side: side,
+      isOnlinePlaying: true,
+      selectModeModal: false,
     }, () => {
       if(this.side === 'B') {
         this.startAI();
@@ -258,18 +301,23 @@ export default class App extends React.Component {
     });
   };
 
-  handleReady = () => {
-
+  changeMyReadyState = () => {
+    this.setState(state => {
+      return {isReady: !state.isReady};
+    }, () => {
+      let {roomId, playerId, isReady} = this.state;
+      setReady(this.ws, roomId, playerId, isReady);
+    });
   };
 
   connect = () => {
     if(this.ws && this.ws.readyState !== this.ws.CLOSED) return;
-    let url = `ws://${this.playOnline.host}:${this.playOnline.port}`;
+    let url = `ws://${this.state.host}:${this.state.port}`;
     let ws = new WebSocket(url);
     this.ws = ws;
 
     ws.onopen = () => {
-      join(ws, this.playOnline.roomId);
+      join(ws, this.state.roomId);
     };
 
     ws.onmessage = (e) => {
@@ -278,15 +326,29 @@ export default class App extends React.Component {
         this.handleJoin(msg);
       } else if(msg.action === 'move') {
         this.handleMessage(msg); // 这个函数原本是用来响应webView的，现在复用它
+      } else if(msg.action === 'start') {
+        this.handleStart(msg);
       }
     };
 
     ws.onerror = (e) => {
-      console.error(e.message);
+      console.log('onerror', e);
+      ToastAndroid.show('Connection Error', ToastAndroid.LONG);
+      if(this.ws && this.ws.readyState !== this.ws.CLOSED && this.ws.readyState !== this.ws.CLOSING) {
+        this.ws.close();
+      }
     };
 
     ws.onclose = (e) => {
-      console.log(e.code, e.reason);
+      console.log('onclose', e);
+      ToastAndroid.show('Connection Closed', ToastAndroid.LONG);
+      this.ws = null;
+      this.setState({
+        playerId: '',
+        isConnected: false,
+        isReady: false,
+        isOnlinePlaying: false,
+      });
     };
   };
 
@@ -300,9 +362,10 @@ export default class App extends React.Component {
       NavigationComponent,
       handlePress,
       promoteSelectedPawn,
-      handleReplay,
       selectMode,
       updateState,
+      changeMyReadyState,
+      connect,
     } = this;
     return (
       <>
@@ -312,9 +375,10 @@ export default class App extends React.Component {
             game: game,
             handlePress,
             promoteSelectedPawn,
-            handleReplay,
             selectMode,
             updateState,
+            changeMyReadyState,
+            connect,
             ...this.state,
           }}>
           <NavigationComponent

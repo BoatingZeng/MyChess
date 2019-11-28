@@ -4,15 +4,6 @@ import {Text, View, Button, StyleSheet, ScrollView, Modal, TextInput, Picker} fr
 import NavigationContext from '../components/NavigationContext';
 
 export default class SelectModeModal extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      host: 'localhost',
-      port: '18888',
-      roomId: 'ai',
-    };
-  }
-
   render() {
     return (
       <NavigationContext.Consumer>
@@ -45,6 +36,7 @@ export default class SelectModeModal extends React.Component {
                   <View style={styles.inputRow}>
                     <Text style={{flex: 1}}>Side：</Text>
                     <Picker
+                      enabled={!data.isConnected}
                       style={{flex: 1}}
                       prompt="Side"
                       selectedValue={data.side}
@@ -61,7 +53,7 @@ export default class SelectModeModal extends React.Component {
                       <Button
                         title="Easy"
                         onPress={() => {
-                          data.selectMode({depth: 2}, null);
+                          data.selectMode({depth: 2});
                         }}
                       />
                     </View>
@@ -69,7 +61,7 @@ export default class SelectModeModal extends React.Component {
                       <Button
                         title="Medium"
                         onPress={() => {
-                          data.selectMode({depth: 3}, null, null);
+                          data.selectMode({depth: 3});
                         }}
                       />
                     </View>
@@ -78,7 +70,7 @@ export default class SelectModeModal extends React.Component {
                     <Button
                       title="Hard"
                       onPress={() => {
-                        data.selectMode({depth: 4}, null);
+                        data.selectMode({depth: 4});
                       }}
                     />
                   </View>
@@ -90,8 +82,8 @@ export default class SelectModeModal extends React.Component {
                     <TextInput
                       placeholder="input host"
                       style={{flex: 2}}
-                      onChangeText={(host) => this.setState({host})}
-                      value={this.state.host}
+                      onChangeText={(host) => data.updateState({host})}
+                      value={data.host}
                     />
                   </View>
                   <View style={styles.inputRow}>
@@ -99,8 +91,8 @@ export default class SelectModeModal extends React.Component {
                     <TextInput
                       placeholder="input port"
                       style={{flex: 2}}
-                      onChangeText={(port) => this.setState({port})}
-                      value={this.state.port}
+                      onChangeText={(port) => data.updateState({port})}
+                      value={data.port}
                     />
                   </View>
                   <View style={styles.inputRow}>
@@ -108,21 +100,23 @@ export default class SelectModeModal extends React.Component {
                     <TextInput
                       placeholder="input room id"
                       style={{flex: 2}}
-                      onChangeText={(roomId) => this.setState({roomId})}
-                      value={this.state.roomId}
+                      onChangeText={(roomId) => data.updateState({roomId})}
+                      value={data.roomId}
                     />
                   </View>
                   <View style={styles.optionsRow}>
                     <View style={styles.buttonContainer}>
                       <Button
+                        disabled={data.isConnected}
                         title="Connect"
                         onPress={() => {
-                          data.selectMode(null, {...this.state});
+                          data.connect();
                         }}
                       />
                     </View>
                     <View style={styles.buttonContainer}>
                       <Button
+                        disabled={data.isReady}
                         title="ChangeSide"
                         onPress={() => {
                           console.log('ChangeSide');
@@ -132,10 +126,9 @@ export default class SelectModeModal extends React.Component {
                   </View>
                   <View style={{margin: 2}}>
                     <Button
-                      title="Ready"
-                      onPress={() => {
-                        console.log('Ready');
-                      }}
+                      disabled={!data.isConnected}
+                      title={data.isReady ? 'Please Wait' : 'Ready'}
+                      onPress={() => data.changeMyReadyState()}
                     />
                   </View>
                 </ScrollView>
