@@ -6,6 +6,8 @@
  * @flow
  */
 
+/* global WebSocket:readonly */
+
 import React from 'react';
 import {Dimensions, View, ToastAndroid} from 'react-native';
 import {createDrawerNavigator} from 'react-navigation-drawer';
@@ -18,6 +20,7 @@ import Settings from './src/pages/Settings';
 import NavigationContext from './src/components/NavigationContext';
 import {html} from './src/scripts/AI';
 import {combineParams} from './src/scripts/utils';
+import {join, parseMessage} from './src/scripts/websocketTool';
 
 let game = Game.prototype.initializeGame();
 const blankFEN = game.FEN; // FEN是棋局状态，blankFEN就是初始状态
@@ -25,6 +28,8 @@ const blankFEN = game.FEN; // FEN是棋局状态，blankFEN就是初始状态
 export default class App extends React.Component {
   constructor() {
     super();
+    this.playOnline = null;
+
     this.state = {
       width: Dimensions.get('window').width,
       height: Dimensions.get('window').height,
@@ -33,9 +38,10 @@ export default class App extends React.Component {
       selected: null,
       checkmate: null,
       playAgainstAI: null,
-      isAIThinking: false,
       promotionParams: null,
       rotated: false,
+      side: 'W',
+      isAIThinking: false, // 设置这个触发渲染
       selectModeModal: game.FEN === blankFEN, // 回到初始状态的话，就准备开始下一局
     };
 
@@ -60,15 +66,20 @@ export default class App extends React.Component {
   }
 
   startAI() {
-    // 这里的startAI是调用WebView里的js写的AI，让AI走一步
-    this.webView.injectJavaScript(
-      `AI(${combineParams(game, this.state.playAgainstAI)})`,
-    );
+    // 用websocket时也复用这个函数，这样改动最少，反正把websocket另一边的玩家也当作ai就好了
+    if(this.playOnline) {
+      // 实际上只要等待就行
+    } else {
+      // 这里的startAI是调用WebView里的js写的AI，让AI走一步
+      this.webView.injectJavaScript(
+        `AI(${combineParams(game, this.state.playAgainstAI)})`,
+      );
+    }
     this.setState({isAIThinking: true});
   }
 
-  handlePress(x, y) {
-    let {selected, playAgainstAI, isAIThinking, checkmate} = this.state;
+  handlePress = (x, y) => {
+    let {selected, playAgainstAI, checkmate, isAIThinking} = this.state;
 
     if (isAIThinking) {
       ToastAndroid.show('AI Thinking', ToastAndroid.SHORT, ToastAndroid.BOTTOM);
@@ -76,6 +87,7 @@ export default class App extends React.Component {
     }
 
     if (selected) {
+      let from = {x: selected.x, y: selected.y}; // 因为下面moveSelected会改变selected，所以先记下来
       // move the selected piece
       let move = game.moveSelected(
         selected,
@@ -95,11 +107,31 @@ export default class App extends React.Component {
         move &&
         playAgainstAI &&
         last >= 0 &&
-        game.turn[last].color === 'W' &&
+        game.turn[last].color === this.state.side &&
         !checkmate &&
         !move.promotion
       ) {
         this.startAI();
+        if(this.playOnline && this.ws && this.ws.readyState === this.ws.OPEN) {
+          // 发送到服务器
+          let msg = {
+            action: 'move',
+            roomId: this.playOnline.roomId,
+            side: this.state.side,
+            move: {
+              from: {
+                x: from.x,
+                y: from.y,
+              },
+              to: {
+                x: x,
+                y: y,
+              },
+            },
+          };
+          msg = JSON.stringify(msg);
+          this.ws.send(msg);
+        }
       }
     } else {
       let last = game.turn.length - 1;
@@ -107,7 +139,7 @@ export default class App extends React.Component {
         game.board[y][x] &&
         (last >= 0
           ? game.board[y][x].color !== game.turn[last].color
-          : game.board[y][x].color === 'W')
+          : game.board[y][x].color === this.state.side)
       ) {
         this.setState({selected: game.board[y][x]});
       } else {
@@ -119,7 +151,7 @@ export default class App extends React.Component {
           );
       }
     }
-  }
+  };
 
   promoteAI(pawn, x, y, color) {
     ToastAndroid.show(
@@ -160,10 +192,17 @@ export default class App extends React.Component {
   };
 
   handleMessage = msg => {
-    if (msg && msg.nativeEvent.data) {
+    const {promoteAI} = this;
+    if(msg.action === 'move') {
+      game.moveSelected(
+        game.board[msg.move.from.y][msg.move.from.x],
+        msg.move.to,
+        promoteAI,
+        this.handleCheckmate,
+        false,
+      );
+    } else if (msg && msg.nativeEvent.data) {
       msg = JSON.parse(msg.nativeEvent.data);
-      const {promoteAI} = this;
-
       game.moveSelected(
         game.board[msg.from.y][msg.from.x],
         msg.to,
@@ -171,9 +210,8 @@ export default class App extends React.Component {
         this.handleCheckmate,
         false,
       );
-
-      this.setState({isAIThinking: false});
     }
+    this.setState({isAIThinking: false});
   };
 
   handleReplay = () => {
@@ -182,29 +220,79 @@ export default class App extends React.Component {
       selected: null,
       promotionParams: null,
       checkmate: null,
-      isAIThinking: false,
       playAgainstAI: null,
-      selectModeModal: true,
     });
+    this.setState({isAIThinking: false});
 
     game = Game.prototype.initializeGame();
   };
 
-  selectMode = playAgainstAI => {
+  selectMode = (playAgainstAI, playOnline) => {
+    if(playOnline) {
+      this.playOnline = {...playOnline};
+      return this.connect();
+    }
+    this.handleReplay();
     this.setState({
-      selectModeModal: false,
-      playAgainstAI: playAgainstAI,
+        selectModeModal: false,
+        playAgainstAI: playAgainstAI,
+    }, () => {
+      if(this.state.side === 'B' && playAgainstAI) {
+        this.startAI();
+      }
     });
   };
 
-  updatePalette = value => {
-    this.setState({palette: value});
+  handleJoin = (data) => {
+    let {playerId, side, roomId} = data;
+    let {host, port} = this.playOnline;
+    this.playOnline = {host, port, playerId, roomId};
+    this.handleReplay();
+    this.setState({
+      playAgainstAI: {depth: 'online'},
+      side: side,
+    }, () => {
+      if(this.side === 'B') {
+        this.startAI();
+      }
+    });
   };
 
-  setRotation = value => {
-    this.setState({
-      rotated: value,
-    });
+  handleReady = () => {
+
+  };
+
+  connect = () => {
+    if(this.ws && this.ws.readyState !== this.ws.CLOSED) return;
+    let url = `ws://${this.playOnline.host}:${this.playOnline.port}`;
+    let ws = new WebSocket(url);
+    this.ws = ws;
+
+    ws.onopen = () => {
+      join(ws, this.playOnline.roomId);
+    };
+
+    ws.onmessage = (e) => {
+      let msg = parseMessage(e);
+      if(msg.action === 'join') {
+        this.handleJoin(msg);
+      } else if(msg.action === 'move') {
+        this.handleMessage(msg); // 这个函数原本是用来响应webView的，现在复用它
+      }
+    };
+
+    ws.onerror = (e) => {
+      console.error(e.message);
+    };
+
+    ws.onclose = (e) => {
+      console.log(e.code, e.reason);
+    };
+  };
+
+  // 让子组件改变自己状态的统一函数，之前是分散了很多个函数的，比较混乱
+  updateState = v => {
+    this.setState(v);
   };
 
   render() {
@@ -214,8 +302,7 @@ export default class App extends React.Component {
       promoteSelectedPawn,
       handleReplay,
       selectMode,
-      updatePalette,
-      setRotation,
+      updateState,
     } = this;
     return (
       <>
@@ -223,12 +310,11 @@ export default class App extends React.Component {
           value={{
             self: this,
             game: game,
-            handlePress: handlePress,
-            promoteSelectedPawn: promoteSelectedPawn,
-            handleReplay: handleReplay,
-            selectMode: selectMode,
-            updatePalette: updatePalette,
-            setRotation: setRotation,
+            handlePress,
+            promoteSelectedPawn,
+            handleReplay,
+            selectMode,
+            updateState,
             ...this.state,
           }}>
           <NavigationComponent

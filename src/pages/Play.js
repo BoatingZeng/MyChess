@@ -10,7 +10,7 @@ import {colorPalettes} from '../config';
 import getSizes from '../scripts/getSizes';
 import renderPromotionModal from '../components/PromotionModal';
 import renderCheckmateModal from '../components/CheckMateModal';
-import renderSelectModeModal from '../components/SelectModeModal';
+import SelectModeModal from '../components/SelectModeModal';
 
 export default class Play extends React.Component {
   static navigationOptions = {
@@ -34,9 +34,7 @@ export default class Play extends React.Component {
             promotionParams,
             promoteSelectedPawn,
             checkmate,
-            handleReplay,
-            selectModeModal,
-            selectMode,
+            updateState,
           } = data;
           const currentPalette = colorPalettes[palette];
           let sizes = getSizes(width, height);
@@ -50,7 +48,7 @@ export default class Play extends React.Component {
                 navigation={this.props.navigation}
                 palette={currentPalette}
               />
-              <NewGameIcon onPress={handleReplay} palette={currentPalette} />
+              <NewGameIcon onPress={() => updateState({selectModeModal: true})} palette={currentPalette} />
               <View>
                 <ChessBoard
                   self={self}
@@ -66,11 +64,11 @@ export default class Play extends React.Component {
                 />
               </View>
               {checkmate &&
-                renderCheckmateModal(checkmate, handleReplay, () => {
+                renderCheckmateModal(checkmate, () => updateState({selectModeModal: true}), () => {
                   self.setState({checkmate: null});
                 })}
               {promotionParams && renderPromotionModal(promoteSelectedPawn)}
-              {selectModeModal && renderSelectModeModal(selectMode)}
+              <SelectModeModal />
             </View>
           );
         }}

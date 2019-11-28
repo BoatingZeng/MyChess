@@ -22,7 +22,7 @@ export default class Settings extends React.Component {
                   prompt="Theme"
                   selectedValue={data.palette}
                   onValueChange={(itemValue, itemIndex) =>
-                    data.updatePalette(itemValue)
+                    data.updateState({palette: itemValue})
                   }>
                   {Object.keys(colorPalettes).map(key => (
                     <Picker.Item
@@ -39,7 +39,7 @@ export default class Settings extends React.Component {
                   style={styles.flex2}
                   value={data.rotated}
                   onValueChange={(v) => {
-                    data.setRotation(v);
+                    data.updateState({rotated: v});
                   }}
                  />
               </View>
