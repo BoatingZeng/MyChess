@@ -6398,11 +6398,6 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
     hash-base "^3.0.0"
     inherits "^2.0.1"
 
-rsg-chess-rn-graphics@^1.1.0-alpha.3:
-  version "1.1.0-alpha.3"
-  resolved "https://registry.npm.taobao.org/rsg-chess-rn-graphics/download/rsg-chess-rn-graphics-1.1.0-alpha.3.tgz#730eba74d89541e8e31a105c7bc7e3f7504696ee"
-  integrity sha1-cw66dNiVQejjGhBce8fj91BGlu4=
-
 rsg-chess@^1.1.0-alpha.2:
   version "1.1.0-alpha.2"
   resolved "https://registry.npm.taobao.org/rsg-chess/download/rsg-chess-1.1.0-alpha.2.tgz#322c91eb91ab15b7d0156b45efd18e12f719eb0a"

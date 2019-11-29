@@ -1,7 +1,7 @@
 import React from 'react';
 import {View, StyleSheet} from 'react-native';
 
-import ChessBoard from 'rsg-chess-rn-graphics';
+import ChessBoard from '../components/ChessBoard';
 
 import MenuIcon from '../components/MenuIcon';
 import NewGameIcon from '../components/NewGameIcon';
@@ -44,11 +44,6 @@ export default class Play extends React.Component {
                 styles.container,
                 {backgroundColor: currentPalette.background},
               ]}>
-              <MenuIcon
-                navigation={this.props.navigation}
-                palette={currentPalette}
-              />
-              <NewGameIcon onPress={() => updateState({selectModeModal: true})} palette={currentPalette} />
               <View>
                 <ChessBoard
                   self={self}
@@ -61,8 +56,14 @@ export default class Play extends React.Component {
                   onPress={handlePress}
                   {...currentPalette.props}
                   rotated={rotated}
+                  boardRotated={data.side === 'B'}
                 />
               </View>
+              <MenuIcon
+                navigation={this.props.navigation}
+                palette={currentPalette}
+              />
+              <NewGameIcon onPress={() => updateState({selectModeModal: true})} palette={currentPalette} />
               {checkmate &&
                 renderCheckmateModal(checkmate, () => updateState({selectModeModal: true}), () => {
                   self.setState({checkmate: null});

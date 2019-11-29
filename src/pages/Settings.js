@@ -34,9 +34,9 @@ export default class Settings extends React.Component {
                 </Picker>
               </View>
               <View style={styles.item_view}>
-                <Text style={styles.flex1}>Rotation：</Text>
+                <Text style={styles.flex2}>Rotate Other Side：</Text>
                 <Switch
-                  style={styles.flex2}
+                  style={styles.flex1}
                   value={data.rotated}
                   onValueChange={(v) => {
                     data.updateState({rotated: v});
