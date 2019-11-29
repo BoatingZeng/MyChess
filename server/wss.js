@@ -1,11 +1,12 @@
 const WebSocket = require('ws');
 const config = require('./config.js');
+const { spawn } = require('child_process');
 
 const wss = new WebSocket.Server(config.server.options);
 
 const rooms = {};
 const players = {};
-
+let aiProcess;
 /**
  *
  * @param {String} msg 一个json字符，必须包含action属性，用来区分不同操作。
@@ -92,10 +93,10 @@ function handleJoin(ws, d){
   let player;
   if(!rooms[roomId].B) {
     side = 'B';
-    playerId = roomId + '_num_1';
+    playerId = roomId + '_num_1' + (new Date()).getTime();
   } else if(!rooms[roomId].W) {
     side = 'W';
-    playerId = roomId + '_num_2';
+    playerId = roomId + '_num_2' + (new Date()).getTime();
   } else {
     // 满了，回个join失败的信息
     let res = {
@@ -126,6 +127,11 @@ function handleJoin(ws, d){
     // 先进来的玩家提出换边还没处理
     let msg = JSON.stringify({action: 'change', status: 'ask'});
     ws.send(msg);
+  }
+
+  // 如果roomId是ai，拉起一个便于测试
+  if(roomId === 'ai' && !rooms[roomId].W && !aiProcess) {
+    aiProcess = spawn('node', ['wsc.js']);
   }
 }
 
@@ -164,6 +170,11 @@ function onClose(e){
     delete room[side];
     delete players[playerId];
     if(!room.B && !room.W) delete rooms[roomId];
+
+    if(aiProcess && roomId === 'ai') {
+      aiProcess.kill();
+      aiProcess = null;
+    }
   }
 }
 

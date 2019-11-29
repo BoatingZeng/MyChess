@@ -62,7 +62,10 @@ ws.on('message', function incoming(e) {
       false,
     );
 
-    if(checkmateValue) return console.log(`check mate：${checkmateValue}`);
+    if(checkmateValue) {
+      console.log(`check mate：${checkmateValue}`);
+      return process.exit();
+    }
 
     let move = moveAI(game, depth);
 
@@ -93,7 +96,12 @@ ws.on('message', function incoming(e) {
     if(gameMove.promotion) res.promote = 'queen';
     if(checkmateValue) res.checkmateValue = checkmateValue;
     res = JSON.stringify(res);
-    ws.send(res);
+    ws.send(res, () => {
+      if(checkmateValue) {
+        console.log(`check mate：${checkmateValue}`);
+        process.exit();
+      }
+    });
   } else if(msg.action === 'start') {
     if(side === 'W'){
       let move = moveAI(game, depth);

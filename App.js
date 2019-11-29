@@ -357,6 +357,12 @@ export default class App extends React.Component {
     });
   };
 
+  disConnect = () => {
+    if(this.ws && this.ws.readyState !== this.ws.CLOSED && this.ws.readyState !== this.ws.CLOSING) {
+      this.ws.close();
+    }
+  };
+
   connect = () => {
     if(this.ws && this.ws.readyState !== this.ws.CLOSED) return;
     let url = `ws://${this.state.host}:${this.state.port}`;
@@ -383,9 +389,7 @@ export default class App extends React.Component {
     ws.onerror = (e) => {
       console.log('onerror', e);
       ToastAndroid.show('Connection Error', ToastAndroid.LONG);
-      if(this.ws && this.ws.readyState !== this.ws.CLOSED && this.ws.readyState !== this.ws.CLOSING) {
-        this.ws.close();
-      }
+      this.disConnect();
     };
 
     ws.onclose = (e) => {
@@ -426,6 +430,7 @@ export default class App extends React.Component {
       updateState,
       changeMyReadyState,
       connect,
+      disConnect,
       changeSideAsk,
     } = this;
     return (
@@ -440,6 +445,7 @@ export default class App extends React.Component {
             updateState,
             changeMyReadyState,
             connect,
+            disConnect,
             changeSideAsk,
             ...this.state,
           }}>
