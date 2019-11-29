@@ -6,9 +6,10 @@ export const combineParams = (game, playAgainstAI) => {
 
   const combine = {
     board: board,
-    turn: JSON.stringify(turn),
-    threefold: JSON.stringify(game.threefold),
+    turn: turn,
+    threefold: game.threefold,
     FEN: game.FEN,
+    FENboard: game.FENboard,
     playAgainstAI: playAgainstAI,
   };
 
