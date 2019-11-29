@@ -387,13 +387,12 @@ export default class App extends React.Component {
     };
 
     ws.onerror = (e) => {
-      console.log('onerror', e);
+      console.error(e.message);
       ToastAndroid.show('Connection Error', ToastAndroid.LONG);
       this.disConnect();
     };
 
     ws.onclose = (e) => {
-      console.log('onclose', e);
       ToastAndroid.show('Connection Closed', ToastAndroid.LONG);
       this.ws = null;
       this.setState({
