@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 const {Game, AI, tools} = require('rsg-chess');
- 
+
 const ws = new WebSocket('ws://localhost:18888');
 
 let game;
@@ -9,6 +9,7 @@ let playerId;
 let side;
 let depth = 2;
 let promote = null;
+let checkmateValue;
 
 function moveAI(game, depth){
   const board = tools.uncycleBoard(game.board);
@@ -19,12 +20,12 @@ function moveAI(game, depth){
     turn: turn,
     threefold: game.threefold,
     FEN: game.FEN,
+    FENboard: game.FENboard,
   };
 
   let bestMove = AI(depth, gameState, true);
-  if (bestMove.to.movePiece) bestMove.to.movePiece = tools.uncycleMovePiece(bestMove.to.movePiece);
   return bestMove;
-};
+}
 
 function handlePromotion(pawn, x, y, color){
   console.log('handlePromotion');
@@ -32,7 +33,8 @@ function handlePromotion(pawn, x, y, color){
   promote = null;
 }
 
-function handleCheckmate(){
+function handleCheckmate(color){
+  checkmateValue = color;
   console.log('handleCheckmate');
 }
 
@@ -59,6 +61,8 @@ ws.on('message', function incoming(e) {
       handleCheckmate,
       false,
     );
+
+    if(checkmateValue) return console.log(`check mate：${checkmateValue}`);
 
     let move = moveAI(game, depth);
 
@@ -87,10 +91,9 @@ ws.on('message', function incoming(e) {
       },
     };
     if(gameMove.promotion) res.promote = 'queen';
+    if(checkmateValue) res.checkmateValue = checkmateValue;
     res = JSON.stringify(res);
     ws.send(res);
-
-    
   } else if(msg.action === 'start') {
     if(side === 'W'){
       let move = moveAI(game, depth);
@@ -112,7 +115,7 @@ ws.on('message', function incoming(e) {
       };
       res = JSON.stringify(res);
       ws.send(res);
-  
+
       game.moveSelected(
         game.board[move.from.y][move.from.x],
         move.to,
@@ -120,6 +123,19 @@ ws.on('message', function incoming(e) {
         handleCheckmate,
         false,
       );
+    }
+  } else if(msg.action === 'change') {
+    if(msg.status === 'ask') {
+      // AI这边接到换边请求直接accept
+      let res = {
+        action: 'change',
+        status: 'accept',
+        roomId: roomId,
+        playerId: playerId,
+      };
+      ws.send(JSON.stringify(res));
+    } else if(msg.status === 'accept') {
+      side = msg.side;
     }
   }
 });

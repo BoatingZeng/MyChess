@@ -116,17 +116,17 @@ export default class SelectModeModal extends React.Component {
                     </View>
                     <View style={styles.buttonContainer}>
                       <Button
-                        disabled={data.isReady}
+                        disabled={data.isReady || data.isChanging}
                         title="ChangeSide"
                         onPress={() => {
-                          console.log('ChangeSide');
+                          data.changeSideAsk();
                         }}
                       />
                     </View>
                   </View>
                   <View style={{margin: 2}}>
                     <Button
-                      disabled={!data.isConnected}
+                      disabled={!data.isConnected || data.isChanging}
                       title={data.isReady ? 'Please Wait' : 'Ready'}
                       onPress={() => data.changeMyReadyState()}
                     />

@@ -9,7 +9,7 @@
 /* global WebSocket:readonly */
 
 import React from 'react';
-import {Dimensions, View, ToastAndroid} from 'react-native';
+import {Dimensions, View, ToastAndroid, Alert} from 'react-native';
 import {createDrawerNavigator} from 'react-navigation-drawer';
 import {createAppContainer} from 'react-navigation';
 import {Game} from 'rsg-chess';
@@ -44,6 +44,7 @@ export default class App extends React.Component {
       roomId: 'ai',
       playerId: '',
       isConnected: false, // 是否已经连接并且加入房间
+      isChanging: false, // 是否等待处理换边
       isReady: false, // 联网时，自己是否准备好
       isOnlinePlaying: false, // 联网游戏是否已经开始
       side: 'W',
@@ -118,7 +119,7 @@ export default class App extends React.Component {
         !checkmate &&
         !move.promotion
       ) {
-        let checkmateValue = move.checkmateValue;
+        let checkmateValue = move.checkmate ? (this.state.side === 'W' ? 'B' : 'W') : false;
         if(!checkmateValue) this.startAI();
         if(this.state.isOnlinePlaying && this.ws && this.ws.readyState === this.ws.OPEN) {
           // 发送到服务器
@@ -283,7 +284,6 @@ export default class App extends React.Component {
         isConnected: true,
         side: side,
       });
-      this.handleReplay();
     } else if(this.ws && this.ws.readyState !== this.ws.CLOSED && this.ws.readyState !== this.ws.CLOSING) {
       ToastAndroid.show('Room Full', ToastAndroid.LONG);
       this.ws.close();
@@ -291,6 +291,7 @@ export default class App extends React.Component {
   };
 
   handleStart = (data) => {
+    this.handleReplay();
     this.setState({
       isOnlinePlaying: true,
       selectModeModal: false,
@@ -299,6 +300,52 @@ export default class App extends React.Component {
         this.startAI();
       }
     });
+  };
+
+  handleChange = (d) => {
+    let status = d.status;
+    if(status === 'ask') {
+      this.setState({isChanging: true});
+      Alert.alert(
+        'Change Side',
+        'The other player want to change side. Accept or reject?',
+        [
+          {
+            text: 'Accept',
+            onPress: () => {
+              let msg = {
+                action: 'change',
+                status: 'accept',
+                roomId: this.state.roomId,
+                playerId: this.state.playerId,
+              };
+              this.ws.send(JSON.stringify(msg));
+            },
+          },
+          {
+            text: 'Reject',
+            onPress: () => {
+              let msg = {
+                action: 'change',
+                status: 'reject',
+                roomId: this.state.roomId,
+                playerId: this.state.playerId,
+              };
+              this.ws.send(JSON.stringify(msg));
+            },
+          },
+        ],
+        {cancelable: false},
+      );
+    } else if(status === 'accept') {
+      let side = d.side;
+      this.setState({
+        isChanging: false,
+        side: side,
+      });
+    } else if(status === 'reject') {
+      this.setState({isChanging: false});
+    }
   };
 
   changeMyReadyState = () => {
@@ -328,6 +375,8 @@ export default class App extends React.Component {
         this.handleMessage(msg); // 这个函数原本是用来响应webView的，现在复用它
       } else if(msg.action === 'start') {
         this.handleStart(msg);
+      } else if(msg.action === 'change') {
+        this.handleChange(msg);
       }
     };
 
@@ -352,6 +401,17 @@ export default class App extends React.Component {
     };
   };
 
+  changeSideAsk = () => {
+    let msg = {
+      action: 'change',
+      status: 'ask',
+      roomId: this.state.roomId,
+      playerId: this.state.playerId,
+    };
+    this.setState({isChanging: true});
+    this.ws.send(JSON.stringify(msg));
+  };
+
   // 让子组件改变自己状态的统一函数，之前是分散了很多个函数的，比较混乱
   updateState = v => {
     this.setState(v);
@@ -366,6 +426,7 @@ export default class App extends React.Component {
       updateState,
       changeMyReadyState,
       connect,
+      changeSideAsk,
     } = this;
     return (
       <>
@@ -379,6 +440,7 @@ export default class App extends React.Component {
             updateState,
             changeMyReadyState,
             connect,
+            changeSideAsk,
             ...this.state,
           }}>
           <NavigationComponent
