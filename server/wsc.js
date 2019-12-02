@@ -31,6 +31,7 @@ function handlePromotion(pawn, x, y, color){
   console.log('handlePromotion');
   game.promotePawn(pawn, x, y, color, promote || 'queen');
   promote = null;
+  checkmateValue = game.checkmate(color === 'W' ? 'B' : 'W'); // 升级后要检查checkmate
 }
 
 function handleCheckmate(color){

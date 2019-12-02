@@ -28,6 +28,10 @@ const blankFEN = game.FEN; // FEN是棋局状态，blankFEN就是初始状态
 export default class App extends React.Component {
   constructor() {
     super();
+    // 储存一些要立刻读取的状态
+    this.tem = {
+      checkmate: null, // game.checkmate不能检测Draw，只能在moveSelected的checkmateCallback里检测Draw
+    };
 
     this.state = {
       width: Dimensions.get('window').width,
@@ -119,7 +123,7 @@ export default class App extends React.Component {
         !checkmate &&
         !move.promotion
       ) {
-        let checkmateValue = move.checkmate ? (this.state.side === 'W' ? 'B' : 'W') : false;
+        let checkmateValue = this.checkmate;
         if(!checkmateValue) this.startAI();
         if(this.state.isOnlinePlaying && this.ws && this.ws.readyState === this.ws.OPEN) {
           // 发送到服务器
@@ -182,7 +186,7 @@ export default class App extends React.Component {
       game.promotePawn(pawn, x, y, color, piece);
       // promote之后要主动检查是否checkmate
       let checkmateColor = color === 'W' ? 'B' : 'W';
-      let checkmateValue = game.checkmate(checkmateColor);
+      let checkmateValue = game.checkmate(checkmateColor); // 因为升级后不可能Draw，所以用checkmate可以检测
       if(checkmateValue) this.handleCheckmate(checkmateValue);
       this.setState({promotionParams: null});
       if ((playAgainstAI || isOnlinePlaying)) {
@@ -215,6 +219,7 @@ export default class App extends React.Component {
   };
 
   handleCheckmate = color => {
+    this.tem.checkmate = color;
     this.setState({checkmate: color, isReady: false, isOnlinePlaying: false});
   };
 
@@ -253,6 +258,7 @@ export default class App extends React.Component {
 
   handleReplay = () => {
     // 这个replay是重新开始的意思，不是重播
+    this.tem.checkmate = null;
     this.setState({
       selected: null,
       promotionParams: null,
