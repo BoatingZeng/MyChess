@@ -6033,6 +6033,11 @@ react-native-screens@^2.0.0-alpha.11:
   dependencies:
     debounce "^1.2.0"
 
+react-native-splash-screen@^3.2.0:
+  version "3.2.0"
+  resolved "https://registry.npm.taobao.org/react-native-splash-screen/download/react-native-splash-screen-3.2.0.tgz#d47ec8557b1ba988ee3ea98d01463081b60fff45"
+  integrity sha1-1H7IVXsbqYjuPqmNAUYwgbYP/0U=
+
 react-native-webview@^7.5.1:
   version "7.5.1"
   resolved "https://registry.npm.taobao.org/react-native-webview/download/react-native-webview-7.5.1.tgz#01b026c1110d7548123460cc640fb1d4227a0f54"

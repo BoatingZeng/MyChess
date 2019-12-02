@@ -14,6 +14,7 @@ import {createDrawerNavigator} from 'react-navigation-drawer';
 import {createAppContainer} from 'react-navigation';
 import {Game} from 'rsg-chess';
 import {WebView} from 'react-native-webview';
+import SplashScreen from 'react-native-splash-screen';
 
 import Play from './src/pages/Play';
 import Settings from './src/pages/Settings';
@@ -425,6 +426,10 @@ export default class App extends React.Component {
   updateState = v => {
     this.setState(v);
   };
+
+  componentDidMount() {
+    SplashScreen.hide();
+  }
 
   render() {
     const {
