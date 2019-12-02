@@ -181,6 +181,7 @@ android {
             if (abi != null) {  // null for the universal-debug, universal-release variants
                 output.versionCodeOverride =
                         versionCodes.get(abi) + defaultConfig.versionCode
+                output.outputFileName = "MyChess-${abi}-${variant.buildType.name}"
             }
 
         }
