@@ -16,7 +16,7 @@
     "react-native-reanimated": "^1.4.0",
     "react-native-screens": "^2.0.0-alpha.11",
     "react-native-splash-screen": "^3.2.0",
-    "react-native-webview": "^7.5.1",
+    "react-native-webview": "^11.0.0",
     "react-navigation": "^4.0.10",
     "react-navigation-drawer": "^2.3.3",
     "rsg-chess": "^1.1.0-alpha.2",
