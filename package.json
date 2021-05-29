@@ -20,7 +20,7 @@
     "react-navigation": "^4.0.10",
     "react-navigation-drawer": "^2.3.3",
     "rsg-chess": "^1.1.0-alpha.2",
-    "ws": "^7.2.0"
+    "ws": "^7.4.6"
   },
   "devDependencies": {
     "@babel/core": "^7.7.2",
